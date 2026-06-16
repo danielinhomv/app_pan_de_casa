@@ -19,7 +19,7 @@ class MenuItem extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'order' => 'integer',
-        // No usamos cast 'array' aquí porque lo manejamos manualmente en el middleware
+        'roles'     => 'array',
     ];
 
     public function children()
@@ -32,15 +32,9 @@ class MenuItem extends Model
         return $this->belongsTo(MenuItem::class, 'parent_id');
     }
 
-    // Accessor para obtener roles como array
+      // Ya no es necesario con el cast, pero lo dejamos por compatibilidad
     public function getRolesArrayAttribute(): array
     {
-        if (is_array($this->roles)) {
-            return $this->roles;
-        }
-        if (is_string($this->roles)) {
-            return json_decode($this->roles, true) ?? [];
-        }
-        return [];
+        return $this->roles ?? [];
     }
 }
