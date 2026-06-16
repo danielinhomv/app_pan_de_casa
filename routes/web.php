@@ -10,7 +10,6 @@ use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\PageVisitController;
 use App\Http\Controllers\VentaController;
-use App\Models\Inventario;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Inventario\MetodoController;

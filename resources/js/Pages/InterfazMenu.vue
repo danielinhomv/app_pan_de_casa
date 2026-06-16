@@ -38,9 +38,9 @@ const formatRoles = (roles) => {
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
                     
                     <div class="flex justify-end mb-4">
-                        <!-- <Link :href="route('menu.create')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded">
+                        <Link :href="route('menu.create')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded">
                             <i class="fas fa-plus mr-2"></i> Crear Nuevo Item
-                        </Link> -->
+                        </Link>
                     </div>
 
                     <!-- Leyenda -->
@@ -110,9 +110,9 @@ const formatRoles = (roles) => {
                                         <Link :href="route('menu.edit', item.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">
                                             <i class="fas fa-edit"></i> Editar
                                         </Link>
-                                        <!-- <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900">
+                                        <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900">
                                             <i class="fas fa-trash"></i> Eliminar
-                                        </button> -->
+                                        </button>
                                     </td>
                                 </tr>
                                 <tr v-if="!menuItems || menuItems.length === 0">

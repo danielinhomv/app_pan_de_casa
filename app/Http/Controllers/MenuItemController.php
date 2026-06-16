@@ -26,8 +26,6 @@ class MenuItemController extends Controller implements HasMiddleware
     public function index()
     {
         $menuItems = MenuItem::with('children')->orderBy('order')->get();
-        BitacoraService::accesoModulo('Configuración de Menú', 'Listado');
-        // Renderizamos la vista InterfazMenu.vue
         return Inertia::render('InterfazMenu', [
             'menuItems' => $menuItems,
         ]);
@@ -55,13 +53,6 @@ class MenuItemController extends Controller implements HasMiddleware
             'is_active' => 'required|boolean',
             'roles' => 'nullable|array',
         ]);
-
-        if (isset($data['roles']) && !empty($data['roles'])) {
-            $data['roles'] = array_values($data['roles']);
-        } else {
-            $data['roles'] = null;
-        }
-
         $menu = MenuItem::create($data);
 
         BitacoraService::accionCrud(
@@ -97,12 +88,6 @@ class MenuItemController extends Controller implements HasMiddleware
             'is_active' => 'required|boolean',
             'roles' => 'nullable|array',
         ]);
-
-        if (isset($data['roles']) && !empty($data['roles'])) {
-            $data['roles'] = array_values($data['roles']);
-        } else {
-            $data['roles'] = null;
-        }
 
         $menu->update($data);
 
