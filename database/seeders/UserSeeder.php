@@ -66,10 +66,10 @@ class UserSeeder extends Seeder
         ])->assignRole('produccion');
 
         // // Propietario
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Propietario Uno',
-        //     'email' => 'propietario1@example.com',
-        //     'password' => bcrypt('password'),
-        // ])->assignRole('propietario');
+        \App\Models\User::factory()->create([
+            'name' => 'Propietario Uno',
+            'email' => 'propietario1@example.com',
+            'password' => bcrypt('password'),
+        ])->assignRole('propietario');
     }
 }

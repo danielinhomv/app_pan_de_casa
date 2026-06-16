@@ -8,7 +8,7 @@ use Inertia\Inertia;
 use App\Models\ProductoBase;
 use App\Models\Proveedor;
 use App\Models\LoteInsumo;
-
+use App\Services\BitacoraService;
 
 class InventarioController extends Controller
 {
@@ -65,7 +65,6 @@ class InventarioController extends Controller
             'ingrediente' => $ingrediente,
             'proveedores' => $proveedores,
         ]);
-
     }
     public function entradaStore(Request $request)
     {
@@ -99,10 +98,16 @@ class InventarioController extends Controller
             'lote_insumo_id' => $loteInsumo->id,
         ]);
 
+        BitacoraService::accionCrud(
+            modulo: 'Almacén',
+            accion: 'Registrar entrada de insumo',
+            registroId: $loteInsumo->id,
+            exitoso: true,
+            detalle: 'Ingreso de lote para: ' . $ingrediente->nombre . ' (Cantidad: ' . $request->cantidad_total_x_unidad . ' ' . $ingrediente->unidad_medida . ')'
+        );
 
         return redirect()->route('almacen.index')
             ->with('success', 'Entrada de ' . $ingrediente->nombre . ' registrada exitosamente.');
-            
     }
     public function salidaCreate($idIngrediente)
     {
@@ -143,7 +148,14 @@ class InventarioController extends Controller
 
         $lote->decrement('cantidad_disponible_x_unidad', $request->cantidad);
 
+        BitacoraService::accionCrud(
+            modulo: 'Almacén',
+            accion: 'Registrar salida de insumo',
+            registroId: $lote->id,
+            exitoso: true,
+            detalle: 'Salida de lote por motivo: ' . $request->motivo_movimiento . ' (Cantidad: ' . $request->cantidad . ')'
+        );
+        
         return redirect()->route('almacen.index')->with('success', 'Salida de insumo registrada correctamente.');
     }
-
 }

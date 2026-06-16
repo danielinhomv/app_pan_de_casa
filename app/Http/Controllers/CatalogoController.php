@@ -8,6 +8,7 @@ use App\Models\PedidoDetalle;
 use App\Models\Venta;
 use App\Models\DetalleVenta;
 use App\Models\Cliente;
+use App\Services\BitacoraService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ class CatalogoController extends Controller
 
         // Si no se envió total, calcularlo
         if ($total === null && !empty($productos)) {
-            $total = collect($productos)->sum(function($item) {
+            $total = collect($productos)->sum(function ($item) {
                 return ($item['precio'] ?? 0) * ($item['cantidad'] ?? 1);
             });
         }
@@ -131,8 +132,15 @@ class CatalogoController extends Controller
                 ]);
             }
 
-            return redirect()->route('cliente.pedidos.index')->with('success', 'Pedido realizado con éxito');
+            BitacoraService::accionCrud(
+                modulo: 'Catálogo',
+                accion: 'Confirmar pedido y venta',
+                registroId: $pedido->id,
+                exitoso: true,
+                detalle: 'Pedido #' . $pedido->id . ' creado exitosamente. Tipo de pago: ' . $request->tipo_pago . ' (Total: ' . $total . ')'
+            );
 
+            return redirect()->route('cliente.pedidos.index')->with('success', 'Pedido realizado con éxito');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Error al procesar el pedido: ' . $e->getMessage()]);

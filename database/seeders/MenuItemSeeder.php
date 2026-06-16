@@ -75,6 +75,16 @@ class MenuItemSeeder extends Seeder
                 'is_active' => true,
                 'roles' => json_encode(['propietario', 'encargadoalmacen']),
             ],
+            // Bitacoras - visible para propìetario
+                        [
+                'title' => 'Bitacoras',
+                'route' => 'bitacoras.index',
+                'icon' => 'fas fa-history',
+                'order' => 8,
+                'is_active' => true,
+                'roles' => json_encode(['propietario']),
+            ],
+            
         ];
 
         foreach ($items as $item) {

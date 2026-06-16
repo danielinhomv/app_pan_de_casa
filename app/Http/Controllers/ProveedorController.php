@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Proveedor;
+use App\Services\BitacoraService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -12,7 +13,7 @@ class ProveedorController extends Controller
     {
         // Recuperar solo las columnas definidas en la migración
         $proveedores = Proveedor::select(['id', 'empresa', 'contacto', 'estado'])->get();
-
+        BitacoraService::accesoModulo('Proveedores', 'Listado');
         return Inertia::render('Inventario/Proveedores/index', [
             'proveedores' => $proveedores,
         ]);
@@ -33,6 +34,14 @@ class ProveedorController extends Controller
             'estado'   => $request->has('estado') ? (bool)$request->estado : true,
         ]);
 
+        BitacoraService::accionCrud(
+            modulo: 'Proveedores',
+            accion: 'Crear registro',
+            registroId: $proveedor->id,
+            exitoso: true,
+            detalle: 'Proveedor creado: ' . $proveedor->empresa . ' (Contacto: ' . ($proveedor->contacto ?? 'N/A') . ')'
+        );
+
         return redirect()->route('proveedores.index')
             ->with('success', 'Proveedor ' . $proveedor->empresa . ' creado exitosamente');
     }
@@ -48,6 +57,14 @@ class ProveedorController extends Controller
         ]);
 
         $proveedor->update($request->only(['empresa', 'contacto', 'estado']));
+
+        BitacoraService::accionCrud(
+            modulo: 'Proveedores',
+            accion: 'Actualizar registro',
+            registroId: $proveedor->id,
+            exitoso: true,
+            detalle: 'Proveedor actualizado: ' . $proveedor->empresa
+        );
 
         return redirect()->route('proveedores.index')
             ->with('success', 'Proveedor actualizado correctamente');

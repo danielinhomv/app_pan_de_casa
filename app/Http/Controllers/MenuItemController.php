@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MenuItem;
+use App\Services\BitacoraService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -25,6 +26,7 @@ class MenuItemController extends Controller implements HasMiddleware
     public function index()
     {
         $menuItems = MenuItem::with('children')->orderBy('order')->get();
+        BitacoraService::accesoModulo('Configuración de Menú', 'Listado');
         // Renderizamos la vista InterfazMenu.vue
         return Inertia::render('InterfazMenu', [
             'menuItems' => $menuItems,
@@ -35,7 +37,7 @@ class MenuItemController extends Controller implements HasMiddleware
     {
         $parents = MenuItem::whereNull('parent_id')->orderBy('order')->get();
         $roles = Role::all()->pluck('name')->toArray();
-        
+
         return Inertia::render('MenuItems/Create', [
             'parents' => $parents,
             'availableRoles' => $roles,
@@ -60,8 +62,15 @@ class MenuItemController extends Controller implements HasMiddleware
             $data['roles'] = null;
         }
 
-        MenuItem::create($data);
+        $menu = MenuItem::create($data);
 
+        BitacoraService::accionCrud(
+            modulo: 'Configuración de Menú',
+            accion: 'Crear registro',
+            registroId: $menu->id,
+            exitoso: true,
+            detalle: 'Elemento de menú creado: ' . $data['title'] . ' (Ruta: ' . ($data['route'] ?? 'N/A') . ')'
+        );
         return redirect()->route('menu.index')->with('success', 'Elemento de menú creado.');
     }
 
@@ -69,7 +78,7 @@ class MenuItemController extends Controller implements HasMiddleware
     {
         $parents = MenuItem::whereNull('parent_id')->where('id', '!=', $menu->id)->orderBy('order')->get();
         $roles = Role::all()->pluck('name')->toArray();
-        
+
         return Inertia::render('MenuItems/Edit', [
             'menu' => $menu,
             'parents' => $parents,
@@ -97,12 +106,27 @@ class MenuItemController extends Controller implements HasMiddleware
 
         $menu->update($data);
 
+        BitacoraService::accionCrud(
+            modulo: 'Configuración de Menú',
+            accion: 'Actualizar registro',
+            registroId: $menu->id,
+            exitoso: true,
+            detalle: 'Elemento de menú actualizado: ' . $menu->title
+        );
+
         return redirect()->route('menu.index')->with('success', 'Elemento de menú actualizado.');
     }
 
     public function destroy(MenuItem $menu)
     {
         $menu->delete();
+        BitacoraService::accionCrud(
+            modulo: 'Configuración de Menú',
+            accion: 'Eliminar registro',
+            registroId: $menu->id,
+            exitoso: true,
+            detalle: 'Elemento de menú eliminado: ' . $menu->title
+        );
         return redirect()->route('menu.index')->with('success', 'Elemento de menú eliminado.');
     }
 }

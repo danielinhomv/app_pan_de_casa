@@ -15,7 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\TrackPageVisits::class, // Registrar middleware de visitas
+            \App\Http\Middleware\TrackPageVisits::class,
+            \App\Http\Middleware\RegistrarEnBitacora::class // Registrar middleware de visitas
         ]);
 
         // Registrar middlewares de Spatie Permission

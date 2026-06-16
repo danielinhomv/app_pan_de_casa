@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BitacoraController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\IngredienteController;
@@ -33,37 +34,37 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    
+
     // Dashboard con redirección según rol
     Route::get('/dashboard', function () {
         $user = auth()->user();
-        
+
         // Cliente -> redirigir a catálogo
         if ($user->hasRole('cliente')) {
             return redirect()->route('catalogo.index');
         }
-        
+
         // Encargado de almacén -> redirigir a inventario
         if ($user->hasRole('encargadoalmacen')) {
             return redirect()->route('inventory');
         }
-        
+
         // Producción -> mostrar dashboard de producción o redirigir
         if ($user->hasRole('produccion')) {
             return redirect()->route('production');
         }
-        
+
         // Propietario y otros -> mostrar dashboard normal
         return Inertia::render('Dashboard1');
     })->name('dashboard');
-    
+
     Route::get('/menu', [Controller::class, 'index'])->name('menu.index');
-    
+
     // Ruta de Accesibilidad
     Route::get('/accesibilidad', function () {
         return Inertia::render('Accesibilidad/index');
     })->name('accesibilidad.index');
-    
+
     Route::prefix('pedidos')->group(function () {
         // Propietario/gestión general
         Route::get('/', [PedidoController::class, 'index'])->name('pedidos.index');
@@ -146,7 +147,7 @@ Route::middleware([
     Route::prefix('Contabilidad')->group(function () {
         // METODO DE INVENTARIO
         Route::prefix('metodos')->group(function () {
-            Route::get('/', [MetodoController::class, 'index'])->name('metodos.index');  
+            Route::get('/', [MetodoController::class, 'index'])->name('metodos.index');
             Route::get('/peps', [MetodoController::class, 'indexPeps'])->name('inventario.metodo.peps');
             Route::get('/ueps', [MetodoController::class, 'indexUeps'])->name('inventario.metodo.ueps');
             Route::get('/promedio-ponderado', [MetodoController::class, 'indexPromedioPonderado'])->name('inventario.metodo.promedio');
@@ -156,7 +157,7 @@ Route::middleware([
     Route::middleware(['auth'])->group(function () {
         Route::resource('menu', MenuItemController::class);
     });
-    
+
     // Rutas de PageVisit
     Route::prefix('page-visits')->group(function () {
         Route::post('/reset-all', [PageVisitController::class, 'resetAll'])->name('page-visits.reset-all');
@@ -177,6 +178,12 @@ Route::middleware([
     // Catálogo - procesar venta (autenticadas)
     Route::post('/catalogo/venta', [CatalogoController::class, 'venta'])->name('catalogo.venta');
     Route::post('/catalogo/confirmar', [CatalogoController::class, 'confirmar'])->name('catalogo.confirmar');
+    //bitacoras
+    Route::prefix('bitacoras')->middleware(['role:propietario'])->group(function () {
+        Route::get('/', [BitacoraController::class, 'listar'])->name('bitacoras.index');
+        Route::get('/exportar', [BitacoraController::class, 'exportarCsv'])->name('bitacoras.exportar');
+        Route::get('/{id}', [BitacoraController::class, 'show'])->name('bitacoras.show');
+    });
 });
 
 // Catálogo público (nombre requerido para redirects como route('catalogo.index'))
