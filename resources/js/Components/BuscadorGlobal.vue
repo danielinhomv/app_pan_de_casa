@@ -100,7 +100,7 @@ onUnmounted(() => {
                 v-model="query"
                 type="text"
                 placeholder="Buscar... (Ctrl+K)"
-                class="w-48 lg:w-64 pl-9 pr-4 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all duration-200 focus:w-72"
+                class="w-56 lg:w-80 pl-9 pr-4 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all duration-200 focus:w-96"
                 @focus="mostrar = resultados.length > 0"
             />
             <!-- Ícono búsqueda / spinner -->

@@ -120,10 +120,6 @@ onMounted(() => {
                             <!-- Navigation Links - MENÚ DINÁMICO -->
                             <MenuItems />
                         </div>
-                        <!-- ★ BÚSQUEDA GLOBAL — entre menú y acciones de usuario -->
-                        <div class="hidden sm:flex sm:items-center px-4">
-                            <BuscadorGlobal />
-                        </div>
 
                         <div class="hidden sm:flex sm:items-center sm:ms-6">
                         </div>
@@ -383,9 +379,16 @@ onMounted(() => {
             </nav>
 
             <!-- Page Heading -->
-            <header v-if="$slots.header" class="bg-white dark:bg-gray-800 shadow transition-colors duration-300">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                    <slot name="header" />
+            <header class="bg-white dark:bg-gray-800 shadow transition-colors duration-300">
+                <div class="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+                    <!-- Título de la página (slot opcional) -->
+                    <div class="flex-1 min-w-0">
+                        <slot v-if="$slots.header" name="header" />
+                    </div>
+                    <!-- Buscador siempre visible en el header -->
+                    <div class="flex-shrink-0">
+                        <BuscadorGlobal />
+                    </div>
                 </div>
             </header>
 
