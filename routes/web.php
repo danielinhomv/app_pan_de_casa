@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BitacoraController;
+use App\Http\Controllers\BuscarController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\IngredienteController;
@@ -33,6 +34,9 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
+
+    //buscador de informacion en cualquier pagina
+    Route::get('/buscar', [BuscarController::class, 'buscar'])->name('buscar');
 
     // Dashboard con redirección según rol
     Route::get('/dashboard', function () {

@@ -11,6 +11,7 @@ import MenuItems from '@/Pages/MenuItems.vue';
 import DarkModeToggle from '@/Components/DarkModeToggle.vue';
 import PageFooter from '@/Components/PageFooter.vue';
 import { useAccessibility } from '@/Composables/useAccessibility';
+import BuscadorGlobal from '@/Components/BuscadorGlobal.vue';
 
 defineProps({
     title: String,
@@ -28,8 +29,8 @@ const currentUserRoles = computed(() => {
 });
 
 const canManageMenu = computed(() => {
-    const hasPermission = currentUserRoles.value.includes('propietario') || 
-                         currentUserRoles.value.includes('encargadoalmacen');
+    const hasPermission = currentUserRoles.value.includes('propietario') ||
+        currentUserRoles.value.includes('encargadoalmacen');
     console.log('Can manage menu:', hasPermission); // Debug
     return hasPermission;
 });
@@ -51,48 +52,49 @@ const accessibility = useAccessibility();
 
 // --- new: runtime loader for Font Awesome (avoids <script>/<style> in template) ---
 function injectCss(id, href) {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById(id)) return;
-  const link = document.createElement('link');
-  link.id = id;
-  link.rel = 'stylesheet';
-  link.href = href;
-  link.crossOrigin = 'anonymous';
-  document.head.appendChild(link);
+    if (typeof document === 'undefined') return;
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = href;
+    link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
 }
 
 function injectScript(id, src, defer = true) {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById(id)) return;
-  const s = document.createElement('script');
-  s.id = id;
-  s.src = src;
-  if (defer) s.defer = true;
-  s.crossOrigin = 'anonymous';
-  document.body.appendChild(s);
+    if (typeof document === 'undefined') return;
+    if (document.getElementById(id)) return;
+    const s = document.createElement('script');
+    s.id = id;
+    s.src = src;
+    if (defer) s.defer = true;
+    s.crossOrigin = 'anonymous';
+    document.body.appendChild(s);
 }
 
 async function ensureFontAwesome() {
-  if (typeof window === 'undefined') return;
-  // Primary CDN
-  injectCss('fa-css', 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css');
-  injectScript('fa-js', 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/js/all.min.js');
+    if (typeof window === 'undefined') return;
+    // Primary CDN
+    injectCss('fa-css', 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css');
+    injectScript('fa-js', 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/js/all.min.js');
 
-  // Fallback check after short timeout -> inject alternate CDN if not loaded
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  if (!document.querySelector('.fa-solid, .fa')) {
-    // fallback to cdnjs
-    injectCss('fa-css-fallback', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
-  }
+    // Fallback check after short timeout -> inject alternate CDN if not loaded
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (!document.querySelector('.fa-solid, .fa')) {
+        // fallback to cdnjs
+        injectCss('fa-css-fallback', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
+    }
 }
 
 onMounted(() => {
-  ensureFontAwesome();
+    ensureFontAwesome();
 });
 </script>
 
 <template>
     <div>
+
         <Head :title="title">
             <!-- head content (no direct script/style with side effects) -->
         </Head>
@@ -100,7 +102,8 @@ onMounted(() => {
         <Banner />
 
         <div class="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300 flex flex-col">
-            <nav class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 transition-colors duration-300">
+            <nav
+                class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 transition-colors duration-300">
                 <!-- Primary Navigation Menu -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex justify-between h-16">
@@ -108,14 +111,17 @@ onMounted(() => {
                             <!-- Logo -->
                             <div class="shrink-0 flex items-center">
                                 <Link :href="route('dashboard')" class="flex items-center gap-3">
-                                <!-- marca textual + icono -->
-                                <ApplicationMark class="block h-9 w-auto" />
-                                <span class="text-lg font-semibold" style="color:#6B4226">Pan de Casa</span>
+                                    <!-- marca textual + icono -->
+                                    <ApplicationMark class="block h-9 w-auto" />
+                                    <span class="text-lg font-semibold" style="color:#6B4226">Pan de Casa</span>
                                 </Link>
                             </div>
 
                             <!-- Navigation Links - MENÚ DINÁMICO -->
                             <MenuItems />
+                        </div>
+
+                        <div class="hidden sm:flex sm:items-center sm:ms-6">
                         </div>
 
                         <div class="hidden sm:flex sm:items-center sm:ms-6">
@@ -256,6 +262,9 @@ onMounted(() => {
                         </div>
 
                         <!-- Hamburger -->
+                        <div class="px-4 pt-3 pb-2">
+                            <BuscadorGlobal />
+                        </div>
                         <div class="-me-2 flex items-center sm:hidden">
                             <button
                                 class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out"
@@ -370,9 +379,16 @@ onMounted(() => {
             </nav>
 
             <!-- Page Heading -->
-            <header v-if="$slots.header" class="bg-white dark:bg-gray-800 shadow transition-colors duration-300">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                    <slot name="header" />
+            <header class="bg-white dark:bg-gray-800 shadow transition-colors duration-300">
+                <div class="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+                    <!-- Título de la página (slot opcional) -->
+                    <div class="flex-1 min-w-0">
+                        <slot v-if="$slots.header" name="header" />
+                    </div>
+                    <!-- Buscador siempre visible en el header -->
+                    <div class="flex-shrink-0">
+                        <BuscadorGlobal />
+                    </div>
                 </div>
             </header>
 
