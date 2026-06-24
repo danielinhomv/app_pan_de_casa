@@ -17,6 +17,14 @@ class PagoFacilController extends Controller
     private const PAYMENT_STATUS_COMPLETED = 2;
     private const PAYMENT_STATUS_REJECTED  = 3;
 
+    //verificar si esta en desarrollo o local
+    private function getClient(): Client
+    {
+        return new Client([
+            'verify' => app()->isProduction(), // false en local, true en prod
+        ]);
+    }
+
     /**
      * Generar QR para pago
      * ★ IMPORTANTE: inicio de transacción de dinero — siempre auditable
@@ -32,18 +40,18 @@ class PagoFacilController extends Controller
             ]);
 
             $venta = Venta::with(['pedido.cliente', 'pedido.detalles.producto'])
-                          ->findOrFail($request->venta_id);
+                ->findOrFail($request->venta_id);
 
             $tokenResponse = $this->obtenerToken();
 
             if (!isset($tokenResponse['values']['accessToken'])) {
                 // ★ Fallo al generar QR — no se pudo autenticar con pasarela
                 BitacoraService::accionCrud(
-                    modulo:     'PagoFácil',
-                    accion:     'Generar QR',
+                    modulo: 'PagoFácil',
+                    accion: 'Generar QR',
                     registroId: $venta->id,
-                    exitoso:    false,
-                    detalle:    'No se pudo obtener token de PagoFácil',
+                    exitoso: false,
+                    detalle: 'No se pudo obtener token de PagoFácil',
                 );
 
                 Log::error('No se pudo obtener un token válido', ['response' => $tokenResponse]);
@@ -55,7 +63,7 @@ class PagoFacilController extends Controller
             $nroPago       = "venta-" . $venta->id . "-" . time();
 
             $body = [
-                'paymentMethod' => 4,
+                'paymentMethod' => config('pagofacil.payment_method'),
                 'clientName'    => $venta->pedido->cliente->nombre ?? 'Cliente',
                 'documentType'  => 1,
                 'documentId'    => (string)($request->ci_nit ?? "0"),
@@ -69,7 +77,7 @@ class PagoFacilController extends Controller
                 'orderDetail'   => $pedidoDetalle,
             ];
 
-            $client   = new Client();
+            $client   = $this->getClient();
             $url      = config('pagofacil.base_url') . '/generate-qr';
             $response = $client->post($url, [
                 'headers' => [
@@ -85,22 +93,22 @@ class PagoFacilController extends Controller
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 BitacoraService::accionCrud(
-                    modulo:     'PagoFácil',
-                    accion:     'Generar QR',
+                    modulo: 'PagoFácil',
+                    accion: 'Generar QR',
                     registroId: $venta->id,
-                    exitoso:    false,
-                    detalle:    'JSON inválido en respuesta de pasarela',
+                    exitoso: false,
+                    detalle: 'JSON inválido en respuesta de pasarela',
                 );
                 return response()->json(['success' => false, 'message' => 'Error al procesar la respuesta del servicio'], 500);
             }
 
             if (!isset($result['values'])) {
                 BitacoraService::accionCrud(
-                    modulo:     'PagoFácil',
-                    accion:     'Generar QR',
+                    modulo: 'PagoFácil',
+                    accion: 'Generar QR',
                     registroId: $venta->id,
-                    exitoso:    false,
-                    detalle:    'Respuesta sin campo values',
+                    exitoso: false,
+                    detalle: 'Respuesta sin campo values',
                 );
                 return response()->json(['success' => false, 'message' => 'Respuesta inesperada del servicio'], 500);
             }
@@ -111,11 +119,11 @@ class PagoFacilController extends Controller
 
             if (!$qrBase64 || !$transactionId) {
                 BitacoraService::accionCrud(
-                    modulo:     'PagoFácil',
-                    accion:     'Generar QR',
+                    modulo: 'PagoFácil',
+                    accion: 'Generar QR',
                     registroId: $venta->id,
-                    exitoso:    false,
-                    detalle:    'QR o transactionId ausente en respuesta',
+                    exitoso: false,
+                    detalle: 'QR o transactionId ausente en respuesta',
                 );
                 return response()->json(['success' => false, 'message' => 'Error al obtener los datos del QR'], 500);
             }
@@ -133,11 +141,11 @@ class PagoFacilController extends Controller
 
             // ★ QR generado correctamente — transacción iniciada
             BitacoraService::accionCrud(
-                modulo:     'PagoFácil',
-                accion:     'Generar QR',
+                modulo: 'PagoFácil',
+                accion: 'Generar QR',
                 registroId: $pago->id,
-                exitoso:    true,
-                detalle:    'Venta #' . $venta->id . ' | Monto: ' . $venta->total . ' BOB | Tx: ' . $transactionId,
+                exitoso: true,
+                detalle: 'Venta #' . $venta->id . ' | Monto: ' . $venta->total . ' BOB | Tx: ' . $transactionId,
             );
 
             Log::info('QR generado correctamente', [
@@ -153,11 +161,10 @@ class PagoFacilController extends Controller
                 'nro_pago'       => $nroPago,
                 'pago_id'        => $pago->id,
             ]);
-
         } catch (\Throwable $th) {
             BitacoraService::accionCrud(
-                modulo:  'PagoFácil',
-                accion:  'Generar QR',
+                modulo: 'PagoFácil',
+                accion: 'Generar QR',
                 exitoso: false,
                 detalle: 'Excepción: ' . $th->getMessage(),
             );
@@ -201,7 +208,7 @@ class PagoFacilController extends Controller
             }
 
             $accessToken = $tokenResponse['values']['accessToken'];
-            $client      = new Client();
+            $client   = $this->getClient();
 
             $response = $client->post(config('pagofacil.base_url') . '/query-transaction', [
                 'headers'         => [
@@ -251,7 +258,6 @@ class PagoFacilController extends Controller
                 ],
                 'message' => $result['message'] ?? 'Consulta realizada',
             ]);
-
         } catch (\Exception $e) {
             Log::error('Excepción crítica en consultarEstado', [
                 'error' => $e->getMessage(),
@@ -281,8 +287,10 @@ class PagoFacilController extends Controller
             if (!$pedidoId) {
                 Log::error('Callback sin PedidoID', ['data' => $request->all()]);
                 return response()->json([
-                    'error' => 1, 'status' => 0,
-                    'message' => "PedidoID es requerido", 'values' => false,
+                    'error' => 1,
+                    'status' => 0,
+                    'message' => "PedidoID es requerido",
+                    'values' => false,
                 ]);
             }
 
@@ -312,8 +320,10 @@ class PagoFacilController extends Controller
                     ]);
 
                     return response()->json([
-                        'error' => 1, 'status' => 0,
-                        'message' => "Pago no encontrado en el sistema", 'values' => false,
+                        'error' => 1,
+                        'status' => 0,
+                        'message' => "Pago no encontrado en el sistema",
+                        'values' => false,
                     ]);
                 }
             }
@@ -344,9 +354,9 @@ class PagoFacilController extends Controller
                 'registro_id' => $pago->id,
                 'exitoso'     => $estadoInterno === 'completado',
                 'detalle'     => 'PedidoID: ' . $pedidoId
-                                . ' | Estado: ' . $estadoAnterior . ' → ' . $estadoInterno
-                                . ' | Monto: ' . $pago->monto . ' BOB'
-                                . ' | Método: ' . ($metodoPago ?? 'N/A'),
+                    . ' | Estado: ' . $estadoAnterior . ' → ' . $estadoInterno
+                    . ' | Monto: ' . $pago->monto . ' BOB'
+                    . ' | Método: ' . ($metodoPago ?? 'N/A'),
             ]);
 
             Log::info('Pago actualizado exitosamente desde callback', [
@@ -356,10 +366,11 @@ class PagoFacilController extends Controller
             ]);
 
             return response()->json([
-                'error' => 0, 'status' => 1,
-                'message' => "Pago procesado correctamente", 'values' => true,
+                'error' => 0,
+                'status' => 1,
+                'message' => "Pago procesado correctamente",
+                'values' => true,
             ]);
-
         } catch (\Exception $e) {
             // ★ Error inesperado en callback de pago
             BitacoraService::registrar('accion_crud', [
@@ -377,8 +388,10 @@ class PagoFacilController extends Controller
             ]);
 
             return response()->json([
-                'error' => 1, 'status' => 0,
-                'message' => "No se pudo procesar el pago", 'values' => false,
+                'error' => 1,
+                'status' => 0,
+                'message' => "No se pudo procesar el pago",
+                'values' => false,
             ]);
         }
     }
@@ -425,7 +438,9 @@ class PagoFacilController extends Controller
     private function obtenerToken()
     {
         try {
-            $client   = new Client();
+
+            $client   = $this->getClient();
+
             $response = $client->post(config('pagofacil.base_url') . '/login', [
                 'headers' => [
                     'Accept'         => 'application/json',
@@ -436,7 +451,6 @@ class PagoFacilController extends Controller
             ]);
 
             return json_decode($response->getBody()->getContents(), true);
-
         } catch (\Exception $e) {
             Log::error('Error al obtener token de Pago Fácil', ['error' => $e->getMessage()]);
             throw new \Exception("Error al obtener el token: " . $e->getMessage());
@@ -481,7 +495,6 @@ class PagoFacilController extends Controller
             ]);
 
             return true;
-
         } catch (\Exception $e) {
             Log::error('Error al actualizar estado del pedido', [
                 'pago_id' => $pago->id,
