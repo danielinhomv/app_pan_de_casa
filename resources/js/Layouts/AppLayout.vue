@@ -262,9 +262,6 @@ onMounted(() => {
                         </div>
 
                         <!-- Hamburger -->
-                        <div class="px-4 pt-3 pb-2">
-                            <BuscadorGlobal />
-                        </div>
                         <div class="-me-2 flex items-center sm:hidden">
                             <button
                                 class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out"
