@@ -10,16 +10,33 @@ use Inertia\Inertia;
 
 class ProductoController extends Controller
 {
-    public function index()
-    {
-        $productos = Producto::select(['id', 'nombre', 'unidad_medida', 'precio_venta', 'descripcion', 'imagen', 'is_active'])->get();
-       
-        BitacoraService::accesoModulo('Productos', 'Listado');
-       
-        return Inertia::render('Produccion/Productos/Index', [
-            'productos' => $productos,
-        ]);
-    }
+  public function index()
+{
+    $productos = Producto::select([
+            'id', 'nombre', 'unidad_medida',
+            'precio_venta', 'descripcion', 'imagen', 'is_active'
+        ])
+        ->withSum(
+            ['movimientosProducto as entradas' => fn($q) => $q->where('tipo_movimiento', 'entrada')],
+            'cantidad'
+        )
+        ->withSum(
+            ['movimientosProducto as salidas' => fn($q) => $q->where('tipo_movimiento', 'salida')],
+            'cantidad'
+        )
+        ->get()
+        ->map(function ($producto) {
+            $producto->stock_disponible = max(0, ($producto->entradas ?? 0) - ($producto->salidas ?? 0));
+            unset($producto->entradas, $producto->salidas);
+            return $producto;
+        });
+
+    BitacoraService::accesoModulo('Productos', 'Listado');
+
+    return Inertia::render('Produccion/Productos/Index', [
+        'productos' => $productos,
+    ]);
+}
 
     public function show($id)
     {

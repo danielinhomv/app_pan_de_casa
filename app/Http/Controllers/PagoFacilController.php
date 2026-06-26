@@ -383,21 +383,6 @@ class PagoFacilController extends Controller
         }
     }
 
-    // ── Métodos privados (sin cambios) ────────────────────────────────────────
-
-    private function isPaidStatus($status)
-    {
-        if ($status === null || $status === '') return false;
-
-        $statusInt = (int)$status;
-        $statusStr = strtolower((string)$status);
-
-        if (in_array($statusInt, [1, 2, 5])) return true;
-        if (in_array($statusStr, ['paid', 'completado', 'procesado', 'approved', 'pagado'])) return true;
-
-        return false;
-    }
-
     private function mapearEstadoPago($estado)
     {
         $estadoLower = strtolower((string)$estado);
