@@ -34,6 +34,6 @@ return [
     // Entorno (sandbox o production)
     'environment' => env('PAGOFACIL_ENVIRONMENT', 'sandbox'),
 
-    //metodo de pago 1
-    'payment_method' => env('PAGOFACIL_PAYMENT_METHOD', 1),
+    //metodo de pago 34
+    'payment_method' => env('PAGOFACIL_PAYMENT_METHOD', 34),
 ];

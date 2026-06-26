@@ -1,49 +1,46 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ResumenProductos from './Components/ResumenProductos.vue';
 import InfoCliente from './Components/InfoCliente.vue';
 import MetodoPago from './Components/MetodoPago.vue';
 import BotonConfirmar from './Components/BotonConfirmar.vue';
-import DebugPanel from './Components/DebugPanel.vue';
-import QRModal from '@/Pages/PagoFacil/QRModal.vue';
+import ConfirmacionModal from '@/Pages/PagoFacil/ConfirmacionModal.vue';
 
 const props = defineProps({
     productos: { type: Array, default: () => [] },
-    cliente: { type: Object, default: () => ({}) },
-    total: { type: Number, default: 0 },
-    venta_id: { type: Number, default: null }
+    cliente:   { type: Object, default: () => ({}) },
+    total:     { type: Number, default: 0 },
+    venta_id:  { type: Number, default: null }
 });
 
-// Estado local
+const toast = useToast();
+
+// Estado local del Formulario
 const tipoPago = ref('efectivo');
 const modalidadPago = ref('contado');
 const numeroCuotas = ref(3);
 const processing = ref(false);
 
-// Datos locales
+// Estado de Modales
+const showConfirmModal = ref(false);
+
+// Datos locales del Carrito
 const localProductos = ref([]);
 const localTotal = ref(0);
 const localCliente = ref({});
 
-// Estado del QR
-const showQRModal = ref(false);
-const ventaIdParaQR = ref(null);
-
-// Calcular si hay datos válidos
 const hayDatos = computed(() => localProductos.value.length > 0);
+const esCuotas = computed(() => modalidadPago.value === 'cuotas');
 
-// Inicializar datos
 onMounted(() => {
-    // Usar props si están disponibles
     if (props.productos && props.productos.length > 0) {
         localProductos.value = props.productos;
         localTotal.value = props.total || calcularTotal(props.productos);
         localCliente.value = props.cliente || {};
-    } 
-    // Fallback: intentar recuperar de localStorage
-    else if (typeof localStorage !== 'undefined') {
+    } else if (typeof localStorage !== 'undefined') {
         const backup = localStorage.getItem('carrito_backup');
         if (backup) {
             try {
@@ -60,9 +57,13 @@ const calcularTotal = (items) => {
     return items.reduce((sum, item) => sum + (Number(item.precio || 0) * Number(item.cantidad || 1)), 0);
 };
 
+// 1. Abre el modal de confirmación estilizado
+const abrirConfirmacion = () => {
+    showConfirmModal.value = true;
+};
+
+// 2. Ejecuta el envío real de los datos al Backend (Laravel procesará e Inertia renderizará la vista del QR)
 const finalizarCompra = () => {
-    if (!confirm('¿Confirmar compra?')) return;
-    
     processing.value = true;
     
     router.post(route('catalogo.confirmar'), {
@@ -70,38 +71,25 @@ const finalizarCompra = () => {
         cliente_id: localCliente.value?.id,
         tipo_pago: tipoPago.value,
         modalidad_pago: modalidadPago.value,
-        numero_cuotas: modalidadPago.value === 'cuotas' ? numeroCuotas.value : null,
+        numero_cuotas: esCuotas.value ? numeroCuotas.value : null,
         total: localTotal.value
     }, {
+        onSuccess: () => {
+            // Se cierra el modal de confirmación antes de cambiar de página
+            showConfirmModal.value = false;
+        },
         onFinish: () => {
             processing.value = false;
         },
         onError: (errors) => {
             processing.value = false;
-            alert('Error al procesar el pedido. Por favor intente nuevamente.');
-            console.error('Errores:', errors);
+            toast.error('Error al procesar el pedido. Por favor intente nuevamente.');
+            console.error('Errores devueltos por el servidor:', errors);
         }
     });
 };
 
-const handleQRSuccess = (data) => {
-    showQRModal.value = false;
-    if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('carrito_backup');
-    }
-    alert('¡Pago completado! Tu pedido ha sido procesado correctamente.');
-    router.visit(route('cliente.pedidos.index'));
-};
-
-const handleQRClose = () => {
-    showQRModal.value = false;
-    // El usuario puede cerrar el modal sin completar el pago
-    // El pago se puede completar después escaneando el QR
-};
-
-const volverAlCatalogo = () => {
-    router.visit(route('catalogo.index'));
-};
+const volverAlCatalogo = () => { router.visit(route('catalogo.index')); };
 </script>
 
 <template>
@@ -117,7 +105,6 @@ const volverAlCatalogo = () => {
             </div>
         </template>
 
-        <!-- Estado Vacío / Error -->
         <div v-if="!hayDatos" class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-10 text-center">
@@ -135,18 +122,15 @@ const volverAlCatalogo = () => {
             </div>
         </div>
 
-        <!-- Contenido Principal -->
         <div v-else class="py-8 bg-gray-50 min-h-screen">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     
-                    <!-- Columna Izquierda -->
                     <div class="lg:col-span-2 space-y-6">
                         <ResumenProductos :productos="localProductos" :total="localTotal" />
                         <InfoCliente :cliente="localCliente" />
                     </div>
 
-                    <!-- Columna Derecha -->
                     <div class="space-y-6">
                         <MetodoPago 
                             v-model:tipoPago="tipoPago"
@@ -159,20 +143,22 @@ const volverAlCatalogo = () => {
                             :modalidadPago="modalidadPago"
                             :numeroCuotas="numeroCuotas"
                             :processing="processing"
-                            @confirmar="finalizarCompra"
+                            @confirmar="abrirConfirmacion"
                         />
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- QR Modal -->
-        <QRModal 
-            :show="showQRModal"
-            :venta-id="ventaIdParaQR"
+        <ConfirmacionModal 
+            :show="showConfirmModal"
             :total="localTotal"
-            @close="handleQRClose"
-            @success="handleQRSuccess"
+            :tipoPago="tipoPago"
+            :modalidadPago="modalidadPago"
+            :numeroCuotas="numeroCuotas"
+            :processing="processing"
+            @close="showConfirmModal = false"
+            @confirm="finalizarCompra"
         />
     </AppLayout>
 </template>

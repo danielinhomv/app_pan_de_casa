@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\RegistrarEnBitacora::class // Registrar middleware de visitas
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'pagofacil/callback',
+        ]);
+
         // Registrar middlewares de Spatie Permission
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

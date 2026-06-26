@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CuentaCobro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\Venta;
@@ -32,12 +33,19 @@ class PagoFacilController extends Controller
     public function generarQR(Request $request)
     {
         try {
-            Log::info('Inicio del método generarQR', ['request' => $request->all()]);
+            Log::info('Inicio generarQR', ['request' => $request->all()]);
 
             $request->validate([
-                'venta_id'    => 'required|exists:ventas,id',
+                'venta_id' => 'required|exists:ventas,id',
+                'pago_id'  => 'required|exists:pagos,id',  // ← cuota específica
                 'metodo_pago' => 'required|in:qr,tigo_money',
             ]);
+
+            // Verificar que el pago pertenece a la venta y está pendiente
+            $pago = Pagos::where('id', $request->pago_id)
+                ->where('venta_id', $request->venta_id)
+                ->where('estado', 'pendiente')
+                ->firstOrFail();
 
             $venta = Venta::with(['pedido.cliente', 'pedido.detalles.producto'])
                 ->findOrFail($request->venta_id);
@@ -45,22 +53,23 @@ class PagoFacilController extends Controller
             $tokenResponse = $this->obtenerToken();
 
             if (!isset($tokenResponse['values']['accessToken'])) {
-                // ★ Fallo al generar QR — no se pudo autenticar con pasarela
                 BitacoraService::accionCrud(
                     modulo: 'PagoFácil',
                     accion: 'Generar QR',
                     registroId: $venta->id,
                     exitoso: false,
-                    detalle: 'No se pudo obtener token de PagoFácil',
+                    detalle: 'No se pudo obtener token',
                 );
-
-                Log::error('No se pudo obtener un token válido', ['response' => $tokenResponse]);
-                return response()->json(['success' => false, 'message' => 'No se pudo obtener un token válido'], 500);
+                return response()->json(['success' => false, 'message' => 'No se pudo obtener token'], 500);
             }
 
-            $accessToken   = $tokenResponse['values']['accessToken'];
-            $pedidoDetalle = $this->formatearDetallesPedido($venta);
-            $nroPago       = "venta-" . $venta->id . "-" . time();
+            $accessToken = $tokenResponse['values']['accessToken'];
+            $datosCuota  = $pago->datos_pago ?? [];
+            $numeroCuota = $datosCuota['numero_cuota'] ?? 1;
+            $totalCuotas = $datosCuota['total_cuotas'] ?? 1;
+
+            // El nroPago identifica la cuota específica
+            $nroPago = "venta-" . $venta->id . "-cuota-" . $numeroCuota . "-" . time();
 
             $body = [
                 'paymentMethod' => config('pagofacil.payment_method'),
@@ -70,11 +79,11 @@ class PagoFacilController extends Controller
                 'phoneNumber'   => (string)($request->telefono ?? "0"),
                 'email'         => $venta->pedido->cliente->email ?? '',
                 'paymentNumber' => $nroPago,
-                'amount'        => (float)$venta->total,
+                'amount'        => (float) $pago->monto,   // ← monto de la cuota, no el total
                 'currency'      => 2,
                 'clientCode'    => (string)$venta->pedido->cliente->id,
                 'callbackUrl'   => config('pagofacil.callback_url'),
-                'orderDetail'   => $pedidoDetalle,
+                'orderDetail'   => $this->formatearDetallesPedido($venta),
             ];
 
             $client   = $this->getClient();
@@ -88,29 +97,17 @@ class PagoFacilController extends Controller
                 'timeout' => config('pagofacil.timeout', 30),
             ]);
 
-            $responseContent = $response->getBody()->getContents();
-            $result          = json_decode($responseContent, true);
+            $result = json_decode($response->getBody()->getContents(), true);
 
-            if (json_last_error() !== JSON_ERROR_NONE) {
+            if (json_last_error() !== JSON_ERROR_NONE || !isset($result['values'])) {
                 BitacoraService::accionCrud(
                     modulo: 'PagoFácil',
                     accion: 'Generar QR',
                     registroId: $venta->id,
                     exitoso: false,
-                    detalle: 'JSON inválido en respuesta de pasarela',
+                    detalle: 'Respuesta inválida de pasarela',
                 );
-                return response()->json(['success' => false, 'message' => 'Error al procesar la respuesta del servicio'], 500);
-            }
-
-            if (!isset($result['values'])) {
-                BitacoraService::accionCrud(
-                    modulo: 'PagoFácil',
-                    accion: 'Generar QR',
-                    registroId: $venta->id,
-                    exitoso: false,
-                    detalle: 'Respuesta sin campo values',
-                );
-                return response()->json(['success' => false, 'message' => 'Respuesta inesperada del servicio'], 500);
+                return response()->json(['success' => false, 'message' => 'Respuesta inválida del servicio'], 500);
             }
 
             $values        = $result['values'];
@@ -123,43 +120,41 @@ class PagoFacilController extends Controller
                     accion: 'Generar QR',
                     registroId: $venta->id,
                     exitoso: false,
-                    detalle: 'QR o transactionId ausente en respuesta',
+                    detalle: 'QR o transactionId ausente',
                 );
-                return response()->json(['success' => false, 'message' => 'Error al obtener los datos del QR'], 500);
+                return response()->json(['success' => false, 'message' => 'Error al obtener datos del QR'], 500);
             }
 
-            $pago = Pagos::create([
-                'venta_id'           => $venta->id,
-                'monto'              => $venta->total,
-                'fecha'              => now(),
-                'metodo_pago'        => 'PAGO_FACIL',
-                'estado'             => 'pendiente',
+            // Actualizar el pago existente con la referencia de PagoFácil
+            $pago->update([
                 'referencia_externa' => $nroPago,
                 'transaction_id'     => $transactionId,
-                'datos_pago'         => $result,
+                'datos_pago'         => array_merge($datosCuota, [
+                    'qr_generado_at' => now(),
+                    'pf_response'    => $result,
+                ]),
             ]);
 
-            // ★ QR generado correctamente — transacción iniciada
             BitacoraService::accionCrud(
                 modulo: 'PagoFácil',
                 accion: 'Generar QR',
                 registroId: $pago->id,
                 exitoso: true,
-                detalle: 'Venta #' . $venta->id . ' | Monto: ' . $venta->total . ' BOB | Tx: ' . $transactionId,
+                detalle: 'Venta #' . $venta->id
+                    . ' | Cuota ' . $numeroCuota . '/' . $totalCuotas
+                    . ' | Monto: ' . $pago->monto . ' BOB'
+                    . ' | Tx: ' . $transactionId,
             );
-
-            Log::info('QR generado correctamente', [
-                'pago_id'        => $pago->id,
-                'transaction_id' => $transactionId,
-                'venta_id'       => $venta->id,
-            ]);
 
             return response()->json([
                 'success'        => true,
-                'qr_image'       => "data:image/png;base64," . $qrBase64,
+                'qr_image'       => 'data:image/png;base64,' . $qrBase64,
                 'transaction_id' => $transactionId,
                 'nro_pago'       => $nroPago,
                 'pago_id'        => $pago->id,
+                'numero_cuota'   => $numeroCuota,
+                'total_cuotas'   => $totalCuotas,
+                'monto_cuota'    => $pago->monto,
             ]);
         } catch (\Throwable $th) {
             BitacoraService::accionCrud(
@@ -168,12 +163,7 @@ class PagoFacilController extends Controller
                 exitoso: false,
                 detalle: 'Excepción: ' . $th->getMessage(),
             );
-
-            Log::error('Error en generarQR', [
-                'error' => $th->getMessage(),
-                'line'  => $th->getLine(),
-                'file'  => $th->getFile(),
-            ]);
+            Log::error('Error en generarQR', ['error' => $th->getMessage(), 'line' => $th->getLine()]);
             return response()->json(['success' => false, 'message' => $th->getMessage()], 500);
         }
     }
@@ -278,11 +268,11 @@ class PagoFacilController extends Controller
         try {
             Log::info('Callback recibido de Pago Fácil', ['data' => $request->all()]);
 
-            $pedidoId  = $request->input('PedidoID');
-            $fecha     = $request->input('Fecha');
-            $hora      = $request->input('Hora');
+            $pedidoId   = $request->input('PedidoID');
+            $fecha      = $request->input('Fecha');
+            $hora       = $request->input('Hora');
             $metodoPago = $request->input('MetodoPago');
-            $estado    = $request->input('Estado');
+            $estado     = $request->input('Estado');
 
             if (!$pedidoId) {
                 Log::error('Callback sin PedidoID', ['data' => $request->all()]);
@@ -294,24 +284,27 @@ class PagoFacilController extends Controller
                 ]);
             }
 
+            // 1. Intentar buscar el pago directamente por su referencia externa
             $pago = Pagos::where('referencia_externa', $pedidoId)->first();
 
+            // 2. Si no se encuentra, aplicar el fallback por Regex
             if (!$pago) {
-                if (preg_match('/^venta-(\d+)-\d+$/', $pedidoId, $matches)) {
+                if (preg_match('/^venta-(\d+)(?:-cuota-\d+)?-\d+$/', $pedidoId, $matches)) {
                     $ventaId = $matches[1];
+
                     $pagoAlternativo = Pagos::where('venta_id', $ventaId)
                         ->where('estado', 'pendiente')
-                        ->orderBy('id', 'desc')
+                        ->orderBy('id', 'asc')
                         ->first();
 
                     if ($pagoAlternativo) {
                         $pago = $pagoAlternativo;
+                        // Lo vinculamos inmediatamente con la referencia que nos envió PagoFácil
                         $pago->update(['referencia_externa' => $pedidoId]);
                     }
                 }
 
                 if (!$pago) {
-                    // ★ Callback de pago sin registro en sistema — posible fraude o error
                     BitacoraService::registrar('accion_crud', [
                         'modulo'  => 'PagoFácil',
                         'accion'  => 'Callback recibido',
@@ -330,24 +323,33 @@ class PagoFacilController extends Controller
 
             $estadoInterno  = $this->mapearEstadoPago($estado);
             $estadoAnterior = $pago->estado;
+            $datosPagoActual = is_array($pago->datos_pago) ? $pago->datos_pago : [];
+
+            // 🚀 CRÍTICO: Envolver toda la actualización en una transacción DB
+            \DB::beginTransaction();
 
             $pago->update([
                 'estado'     => $estadoInterno,
                 'fecha_pago' => now(),
-                'datos_pago' => [
-                    'callback_data'           => $request->all(),
-                    'fecha_callback'          => now(),
-                    'metodo_pago_pagofacil'   => $metodoPago,
-                    'fecha_pago_pagofacil'    => $fecha,
-                    'hora_pago_pagofacil'     => $hora,
-                ],
+                'datos_pago' => array_merge($datosPagoActual, [
+                    'callback_data'         => $request->all(),
+                    'fecha_callback'        => now(),
+                    'metodo_pago_pagofacil' => $metodoPago,
+                    'fecha_pago_pagofacil'  => $fecha,
+                    'hora_pago_pagofacil'   => $hora,
+                ]),
             ]);
 
             if ($estadoInterno === 'completado') {
-                $this->actualizarEstadoPedido($pago);
+                // Descontamos el saldo en la cuenta de cobro
+                $this->descontarCuentaCobro($pago);
+
+                // Verificamos si ya es hora de dar por completado el Pedido entero
+                $this->actualizarEstadoPedidoSiCorresponde($pago);
             }
 
-            // ★ Resultado final del pago — el más importante de todos
+            \DB::commit();
+
             BitacoraService::registrar('accion_crud', [
                 'modulo'      => 'PagoFácil',
                 'accion'      => 'Callback — pago ' . $estadoInterno,
@@ -355,14 +357,7 @@ class PagoFacilController extends Controller
                 'exitoso'     => $estadoInterno === 'completado',
                 'detalle'     => 'PedidoID: ' . $pedidoId
                     . ' | Estado: ' . $estadoAnterior . ' → ' . $estadoInterno
-                    . ' | Monto: ' . $pago->monto . ' BOB'
-                    . ' | Método: ' . ($metodoPago ?? 'N/A'),
-            ]);
-
-            Log::info('Pago actualizado exitosamente desde callback', [
-                'pago_id'    => $pago->id,
-                'pedido_id'  => $pedidoId,
-                'estado_nuevo' => $estadoInterno,
+                    . ' | Monto: ' . $pago->monto . ' BOB',
             ]);
 
             return response()->json([
@@ -372,25 +367,17 @@ class PagoFacilController extends Controller
                 'values' => true,
             ]);
         } catch (\Exception $e) {
-            // ★ Error inesperado en callback de pago
-            BitacoraService::registrar('accion_crud', [
-                'modulo'  => 'PagoFácil',
-                'accion'  => 'Callback — excepción',
-                'exitoso' => false,
-                'detalle' => $e->getMessage(),
-            ]);
-
+            \DB::rollBack();
             Log::error('Error en callback de PagoFácil', [
                 'error' => $e->getMessage(),
                 'line'  => $e->getLine(),
                 'file'  => $e->getFile(),
-                'data'  => $request->all(),
             ]);
 
             return response()->json([
                 'error' => 1,
                 'status' => 0,
-                'message' => "No se pudo procesar el pago",
+                'message' => "No se pudo procesar el pago debido a un error interno",
                 'values' => false,
             ]);
         }
@@ -473,34 +460,83 @@ class PagoFacilController extends Controller
         return $detalles;
     }
 
-    private function actualizarEstadoPedido($pago)
+    // ★ Solo completa el pedido cuando todas las cuotas estén pagadas
+    private function actualizarEstadoPedidoSiCorresponde(Pagos $pago): void
     {
         try {
+            // Verificar si quedan pagos pendientes para esta venta
+            $pagosPendientes = Pagos::where('venta_id', $pago->venta_id)
+                ->where('id', '!=', $pago->id) // 👈 Forzar exclusión del actual
+                ->where('estado', 'pendiente')
+                ->count();
+
+            if ($pagosPendientes > 0) {
+                Log::info('Pedido no completado aún — quedan cuotas pendientes', [
+                    'venta_id'         => $pago->venta_id,
+                    'pendientes'       => $pagosPendientes,
+                ]);
+                return;
+            }
+
+            // También verificar por CuentaCobro si existe
+            $cuentaCobro = CuentaCobro::where('venta_id', $pago->venta_id)->first();
+            if ($cuentaCobro && $cuentaCobro->saldo_pendiente > 0) {
+                Log::info('Pedido no completado — saldo_pendiente aún mayor a 0', [
+                    'venta_id'        => $pago->venta_id,
+                    'saldo_pendiente' => $cuentaCobro->saldo_pendiente,
+                ]);
+                return;
+            }
+
             $venta = Venta::with('pedido')->find($pago->venta_id);
 
             if (!$venta || !$venta->pedido) {
-                Log::warning('No se encontró venta o pedido asociado al pago', [
+                Log::warning('No se encontró venta o pedido', [
                     'pago_id'  => $pago->id,
                     'venta_id' => $pago->venta_id,
                 ]);
-                return false;
+                return;
             }
 
             $venta->pedido->update(['estado' => 'COMPLETADO']);
 
-            Log::info('Pedido actualizado como COMPLETADO', [
+            Log::info('Pedido marcado como COMPLETADO — todas las cuotas pagadas', [
                 'pedido_id' => $venta->pedido->id,
                 'venta_id'  => $venta->id,
-                'pago_id'   => $pago->id,
             ]);
-
-            return true;
         } catch (\Exception $e) {
             Log::error('Error al actualizar estado del pedido', [
                 'pago_id' => $pago->id,
                 'error'   => $e->getMessage(),
             ]);
-            return false;
+        }
+    }
+    private function descontarCuentaCobro(Pagos $pago): void
+    {
+        try {
+            $cuentaCobro = CuentaCobro::where('venta_id', $pago->venta_id)->first();
+
+            if (!$cuentaCobro) {
+                Log::info('Sin CuentaCobro — pago al contado', ['venta_id' => $pago->venta_id]);
+                return;
+            }
+
+            $saldoAnterior = $cuentaCobro->saldo_pendiente; // ← guardar ANTES de update
+            $nuevoSaldo    = max(0, $saldoAnterior - $pago->monto);
+
+            $cuentaCobro->update(['saldo_pendiente' => $nuevoSaldo]);
+
+            Log::info('CuentaCobro actualizada', [
+                'venta_id'       => $pago->venta_id,
+                'descontado'     => $pago->monto,
+                'saldo_anterior' => $saldoAnterior,
+                'saldo_nuevo'    => $nuevoSaldo,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al descontar CuentaCobro', [
+                'pago_id' => $pago->id,
+                'error'   => $e->getMessage(),
+            ]);
         }
     }
 }

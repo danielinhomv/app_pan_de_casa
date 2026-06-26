@@ -6,6 +6,9 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
+import Toast from "vue-toastification";
+import "vue-toastification/dist/index.css";
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
@@ -15,6 +18,14 @@ createInertiaApp({
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
+            .use(Toast, {
+                // 2. Configuración opcional por defecto
+                position: "top-right",
+                timeout: 4000,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+            })
             .mount(el);
     },
     progress: {

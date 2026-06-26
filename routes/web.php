@@ -187,12 +187,11 @@ Route::middleware([
         Route::get('/exportar', [BitacoraController::class, 'exportarCsv'])->name('bitacoras.exportar');
         Route::get('/{id}', [BitacoraController::class, 'show'])->name('bitacoras.show');
     });
+
+    Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
+    
 });
 
-// Catálogo público (nombre requerido para redirects como route('catalogo.index'))
-Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
-
-// Rutas de PagoFácil públicas (sin autenticación)
 Route::prefix('pagofacil')->group(function () {
     Route::post('/consultar-estado', [\App\Http\Controllers\PagoFacilController::class, 'consultarEstado'])->name('pagofacil.consultar-estado');
     Route::post('/callback', [\App\Http\Controllers\PagoFacilController::class, 'callback'])->name('pagofacil.callback');
