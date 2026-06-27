@@ -14,6 +14,7 @@ class PedidoController extends Controller
 {
     /**
      * Vista del propietario - lista todos los pedidos
+     * 🔒 INTACTO
      */
     public function index()
     {
@@ -28,7 +29,7 @@ class PedidoController extends Controller
 
     /**
      * Vista del propietario - detalle de pedido con mapa
-     * No se registra: ver detalle es ruido, lo importante es la acción posterior
+     * 🔒 INTACTO
      */
     public function show($id)
     {
@@ -56,7 +57,7 @@ class PedidoController extends Controller
 
     /**
      * Actualizar estado del pedido (propietario/delivery)
-     * ★ IMPORTANTE: cambio de estado es auditable
+     * 🔒 INTACTO
      */
     public function update(Request $request, $id)
     {
@@ -86,7 +87,7 @@ class PedidoController extends Controller
 
     /**
      * Acción rápida para avanzar al siguiente estado
-     * ★ IMPORTANTE: cambio de estado es auditable
+     * 🔒 INTACTO
      */
     public function quickComplete($id)
     {
@@ -116,7 +117,7 @@ class PedidoController extends Controller
 
     /**
      * Vista del cliente - sus pedidos
-     * Se registra: permite saber qué clientes usan activamente el sistema
+     * 🛠️ CONTROL DE CONTADO AÑADIDO
      */
     public function clienteIndex()
     {
@@ -132,13 +133,61 @@ class PedidoController extends Controller
             ]);
         }
 
-        $pedidos = Pedido::with(['detalles.producto'])
+        $pedidos = Pedido::with(['detalles.producto', 'venta.pagos', 'venta.cuentaCobro'])
             ->where('cliente_id', $clienteId)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $enCurso    = $pedidos->filter(fn($p) => !in_array($p->estado_produccion, ['delivered', 'completed']));
-        $realizados = $pedidos->filter(fn($p) =>  in_array($p->estado_produccion, ['delivered', 'completed']));
+        $pedidosProcesados = $pedidos->map(function ($pedido) {
+            $venta = $pedido->venta;
+
+            if ($venta) {
+                // Sumamos los montos de los pagos completados
+                $montoPagado = $venta->pagos->where('estado', 'completado')->sum('monto');
+                
+                // Determinar el Modo de Pago (Contado vs Crédito/Cuotas)
+                $esContado = strtolower($venta->modo_pago) === 'contado';
+
+                if ($esContado) {
+                    // Si es al contado, no hay saldo pendiente real (o se pagó completo o falta impactar el QR único)
+                    $saldoPendiente = $montoPagado > 0 ? 0 : (float) $venta->total;
+                    $estadoPago = $montoPagado > 0 ? 'pagado' : 'pendiente';
+                } else {
+                    // Si es al crédito/cuotas, nos basamos estrictamente en la cuenta de cobro
+                    $saldoPendiente = $venta->cuentaCobro 
+                        ? (float) $venta->cuentaCobro->saldo_pendiente 
+                        : max(0, (float) $venta->total - $montoPagado);
+
+                    if ($saldoPendiente <= 0 && $venta->pagos->count() > 0) {
+                        $estadoPago = 'pagado';
+                    } elseif ($montoPagado > 0 && $saldoPendiente > 0) {
+                        $estadoPago = 'parcial';
+                    } else {
+                        $estadoPago = 'pendiente';
+                    }
+                }
+                
+                $tipoPago = $venta->tipo_pago;
+                $modoPago = $venta->modo_pago;
+            } else {
+                $montoPagado = 0;
+                $saldoPendiente = (float) $pedido->total;
+                $estadoPago = 'pendiente';
+                $tipoPago = 'No definido';
+                $modoPago = 'No definido';
+            }
+
+            $pedido->monto_pagado    = $montoPagado;
+            $pedido->saldo_pendiente = $saldoPendiente;
+            $pedido->estado_pago     = $estadoPago;
+            $pedido->tipo_pago       = $tipoPago;
+            $pedido->modo_pago       = $modoPago;
+
+            return $pedido;
+        });
+
+        $enCurso    = $pedidosProcesados->filter(fn($p) => !in_array($p->estado_produccion, ['delivered', 'completed']));
+        $realizados = $pedidosProcesados->filter(fn($p) =>  in_array($p->estado_produccion, ['delivered', 'completed']));
 
         return Inertia::render('Pedidos/Cliente/index', [
             'enCurso'    => $enCurso->values(),
@@ -148,27 +197,53 @@ class PedidoController extends Controller
 
     /**
      * Vista del cliente - detalle de su pedido
-     * ★ IMPORTANTE: registrar acceso denegado si intenta ver pedido ajeno
+     * 🛠️ CONTROL DE CONTADO AÑADIDO
      */
     public function clienteShow($id)
     {
         $user   = auth()->user();
-        $pedido = Pedido::with(['cliente', 'detalles.producto'])->findOrFail($id);
+        $pedido = Pedido::with(['cliente', 'detalles.producto', 'venta.pagos', 'venta.cuentaCobro'])->findOrFail($id);
 
         if ($pedido->cliente_id !== ($user->cliente->id ?? null)) {
             BitacoraService::accesoDenegado('Mis Pedidos');
             abort(403);
         }
 
+        $venta = $pedido->venta;
+        if ($venta) {
+            $montoPagado = $venta->pagos->where('estado', 'completado')->sum('monto');
+            $esContado   = strtolower($venta->modo_pago) === 'contado';
+
+            if ($esContado) {
+                $saldoPendiente = $montoPagado > 0 ? 0 : (float) $venta->total;
+                $estadoPago     = $montoPagado > 0 ? 'pagado' : 'pendiente';
+            } else {
+                $saldoPendiente = $venta->cuentaCobro ? (float) $venta->cuentaCobro->saldo_pendiente : max(0, (float) $venta->total - $montoPagado);
+                $estadoPago     = $saldoPendiente <= 0 ? 'pagado' : ($montoPagado > 0 ? 'parcial' : 'pendiente');
+            }
+            
+            $historialPagos = $venta->pagos;
+        } else {
+            $montoPagado    = 0;
+            $saldoPendiente = (float) $pedido->total;
+            $historialPagos = [];
+            $estadoPago     = 'pendiente';
+        }
+
+        $pedido->monto_pagado    = $montoPagado;
+        $pedido->saldo_pendiente = $saldoPendiente;
+        $pedido->estado_pago     = $estadoPago;
+
         return Inertia::render('Pedidos/Cliente/EnCurso', [
             'pedido'   => $pedido,
             'detalles' => $pedido->detalles,
+            'pagos'    => $historialPagos,
         ]);
     }
 
     /**
      * Cliente marca pedido como recibido
-     * ★ IMPORTANTE: confirmación de entrega es auditable
+     * 🔒 INTACTO
      */
     public function clienteRecibido($id)
     {
