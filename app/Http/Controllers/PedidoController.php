@@ -144,7 +144,7 @@ class PedidoController extends Controller
             if ($venta) {
                 // Sumamos los montos de los pagos completados
                 $montoPagado = $venta->pagos->where('estado', 'completado')->sum('monto');
-                
+
                 // Determinar el Modo de Pago (Contado vs Crédito/Cuotas)
                 $esContado = strtolower($venta->modo_pago) === 'contado';
 
@@ -154,8 +154,8 @@ class PedidoController extends Controller
                     $estadoPago = $montoPagado > 0 ? 'pagado' : 'pendiente';
                 } else {
                     // Si es al crédito/cuotas, nos basamos estrictamente en la cuenta de cobro
-                    $saldoPendiente = $venta->cuentaCobro 
-                        ? (float) $venta->cuentaCobro->saldo_pendiente 
+                    $saldoPendiente = $venta->cuentaCobro
+                        ? (float) $venta->cuentaCobro->saldo_pendiente
                         : max(0, (float) $venta->total - $montoPagado);
 
                     if ($saldoPendiente <= 0 && $venta->pagos->count() > 0) {
@@ -166,7 +166,7 @@ class PedidoController extends Controller
                         $estadoPago = 'pendiente';
                     }
                 }
-                
+
                 $tipoPago = $venta->tipo_pago;
                 $modoPago = $venta->modo_pago;
             } else {
@@ -218,15 +218,20 @@ class PedidoController extends Controller
                 $saldoPendiente = $montoPagado > 0 ? 0 : (float) $venta->total;
                 $estadoPago     = $montoPagado > 0 ? 'pagado' : 'pendiente';
             } else {
-                $saldoPendiente = $venta->cuentaCobro ? (float) $venta->cuentaCobro->saldo_pendiente : max(0, (float) $venta->total - $montoPagado);
-                $estadoPago     = $saldoPendiente <= 0 ? 'pagado' : ($montoPagado > 0 ? 'parcial' : 'pendiente');
+                $saldoPendiente = $venta->cuentaCobro
+                    ? (float) $venta->cuentaCobro->saldo_pendiente
+                    : max(0, (float) $venta->total - $montoPagado);
+                $estadoPago = $saldoPendiente <= 0 ? 'pagado' : ($montoPagado > 0 ? 'parcial' : 'pendiente');
             }
-            
-            $historialPagos = $venta->pagos;
+
+            // ── CAMBIO 1: ordenar pagos por id asc para que cuota 1 sea siempre la primera ──
+            // El frontend usa el orden del array para mostrar "Cuota 1, Cuota 2..."
+            // Si vienen desordenados, los números de cuota no coinciden con datos_pago.numero_cuota
+            $historialPagos = $venta->pagos->sortBy('id')->values();
         } else {
             $montoPagado    = 0;
             $saldoPendiente = (float) $pedido->total;
-            $historialPagos = [];
+            $historialPagos = collect();
             $estadoPago     = 'pendiente';
         }
 
@@ -234,10 +239,19 @@ class PedidoController extends Controller
         $pedido->saldo_pendiente = $saldoPendiente;
         $pedido->estado_pago     = $estadoPago;
 
+        // ── CAMBIO 2: pasar venta_id explícito como prop separada ──
+        // EnCurso.vue usa :venta-id="pedido.venta?.id ?? pedido.venta_id"
+        // La relación venta ya viene cargada con ->with('venta...') arriba,
+        // así que pedido.venta.id funciona en el frontend.
+        // Pero si la relación llegara null por algún motivo, el fallback
+        // pedido.venta_id no existe en el objeto Eloquent serializado
+        // a menos que lo agreguemos explícitamente acá:
+        $pedido->venta_id = $venta?->id;
+
         return Inertia::render('Pedidos/Cliente/EnCurso', [
             'pedido'   => $pedido,
             'detalles' => $pedido->detalles,
-            'pagos'    => $historialPagos,
+            'pagos'    => $historialPagos, // ← ya ordenados asc por id
         ]);
     }
 
