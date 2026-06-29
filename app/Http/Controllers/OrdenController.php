@@ -318,49 +318,53 @@ class OrdenController extends Controller
         }
     }
 
-    /**
-     * 🟣 MOMENTO 3: FINALIZACIÓN (Terminar Orden)
-     * Registra el producto terminado en el inventario de venta.
-     */
-    public function finalizarOrden(Request $request, $id)
-    {
-        $orden = OrdenProduccion::findOrFail($id);
+/**
+ * 🟣 MOMENTO 3: FINALIZACIÓN (Terminar Orden)
+ * Registra el producto terminado en el inventario de venta.
+ */
+public function finalizarOrden(Request $request, $id)
+{
+    $orden = OrdenProduccion::findOrFail($id);
 
-        // ✅ Validación de Estado
-        if ($orden->estado !== 'en_proceso') {
-            return back()->withErrors(['error' => 'Esta orden no está en proceso. Primero debe ejecutar la producción.']);
-        }
-
-        DB::beginTransaction();
-        try {
-            // 📦 Registrar producto terminado
-            ProductoTerminado::create([
-                'producto_id' => $orden->producto_id,
-                'orden_produccion_id' => $orden->id,
-                'cantidad' => $orden->cantidad_a_producir,
-            ]);
-
-            // 📊 Registrar movimiento de entrada de producto
-            MovimientoProducto::create([
-                'producto_id' => $orden->producto_id,
-                'orden_produccion_id' => $orden->id,
-                'tipo' => 'ENTRADA',
-                'cantidad' => $orden->cantidad_a_producir,
-                'fecha' => now(),
-            ]);
-
-            // ✅ Marcar orden como finalizada
-            $orden->estado = 'finalizada';
-            $orden->save();
-
-            DB::commit();
-            return redirect()->route('ordenes.index')->with('success', "Orden #{$orden->id} finalizada. Producto ingresado al inventario de venta.");
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
+    // Validación de estado — solo se puede finalizar si está en_proceso
+    if ($orden->estado !== 'en_proceso') {
+        return back()->withErrors(['error' => 'Esta orden no está en proceso y no puede finalizarse.']);
     }
+
+    DB::beginTransaction();
+    try {
+        // ── CAMBIO: campo corregido de 'cantidad' a 'cantidad_producida' ──
+        // y agregado 'fecha_produccion' que faltaba
+        ProductoTerminado::create([
+            'producto_id'         => $orden->producto_id,
+            'orden_produccion_id' => $orden->id,
+            'cantidad_producida'  => $orden->cantidad_a_producir, // ← campo correcto
+            'fecha_produccion'    => now(),                        // ← faltaba
+        ]);
+
+        // ── CAMBIO: campo corregido de 'tipo' a 'tipo_movimiento' ──
+        // y valor corregido de 'ENTRADA' a 'entrada' (minúscula, igual que en store())
+        MovimientoProducto::create([
+            'producto_id'         => $orden->producto_id,
+            'orden_produccion_id' => $orden->id,
+            'tipo_movimiento'     => 'entrada', // ← campo y valor correctos
+            'cantidad'            => $orden->cantidad_a_producir,
+            'fecha'               => now(),
+        ]);
+
+        $orden->estado = 'finalizada';
+        $orden->save();
+
+        DB::commit();
+
+        return redirect()->route('ordenes.index')
+            ->with('success', "Orden #{$orden->id} finalizada. {$orden->cantidad_a_producir} unidades de \"{$orden->producto->nombre}\" ingresadas al inventario.");
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->withErrors(['error' => 'Error al finalizar la orden: ' . $e->getMessage()]);
+    }
+}
 
     /**
      * Update the specified resource in storage.

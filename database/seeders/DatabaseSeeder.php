@@ -59,8 +59,8 @@ class DatabaseSeeder extends Seeder
         ]);
 
         DB::table('orden_produccions')->insert([
-            ['fecha_creacion' => $today, 'cantidad_a_producir' => 10, 'estado' => 'en_proceso', 'operario_id' => null, 'producto_id' => 1, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
-            ['fecha_creacion' => $today, 'cantidad_a_producir' => 800, 'estado' => 'en_proceso', 'operario_id' => null, 'producto_id' => 2, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+            ['fecha_creacion' => $today, 'cantidad_a_producir' => 10, 'estado' => 'finalizada', 'operario_id' => null, 'producto_id' => 1, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+            ['fecha_creacion' => $today, 'cantidad_a_producir' => 800, 'estado' => 'finalizada', 'operario_id' => null, 'producto_id' => 2, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
         ]);
 
         DB::table('consumo_insumos')->insert([

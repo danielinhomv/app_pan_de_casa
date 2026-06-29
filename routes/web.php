@@ -144,6 +144,8 @@ Route::middleware([
             Route::get('/', [OrdenController::class, 'index'])->name('ordenes.index');
             Route::post('/', [OrdenController::class, 'store'])->name('ordenes.store');
             Route::put('/{id}', [OrdenController::class, 'update'])->name('ordenes.update'); // Maneja action=ejecutar y action=finalizar
+            Route::put('/{id}/finalizar', [OrdenController::class, 'finalizarOrden'])->name('ordenes.finalizar'); // ← nueva
+
             Route::delete('/{id}', [OrdenController::class, 'destroy'])->name('ordenes.destroy');
         });
     });
@@ -189,7 +191,6 @@ Route::middleware([
     });
 
     Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
-    
 });
 
 Route::prefix('pagofacil')->group(function () {
