@@ -29,7 +29,7 @@ const generarQR = async () => {
     error.value   = null;
 
     try {
-        const response = await axios.post('/pagofacil/generar-qr', {
+        const response = await axios.post(route('pagofacil.generar-qr'), {
             venta_id:    props.ventaId,
             pago_id:     props.pagoId,  // ← ID de la cuota pendiente
             metodo_pago: 'qr',
@@ -74,7 +74,7 @@ const verificarEstadoPago = async () => {
     console.log(`Polling intento ${pollingCount.value}/${maxPollingAttempts}`);
 
     try {
-        const response = await axios.post('/pagofacil/consultar-estado', {
+        const response = await axios.post(route('pagofacil.consultar-estado'), {
             transaction_id: transactionId.value,
         });
 
