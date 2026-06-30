@@ -12,10 +12,9 @@ const handleImageError = (e) => {
 
 // helper for product images
 const getImageUrl = (img) => {
-    if (!img) return 'https://placehold.co/100x100/EEE/31343C?text=Producto';
-    if (typeof img !== 'string') return 'https://placehold.co/100x100/EEE/31343C?text=Producto';
-    if (img.startsWith('http') || img.startsWith('/')) return img;
-    return `/${img}`;
+    if (!img || typeof img !== 'string')
+        return 'https://placehold.co/400x300/EEE/31343C?text=Producto';
+    return img; // ya viene con la URL completa desde el backend
 };
 
 const subtotal = computed(() => props.total || 0);

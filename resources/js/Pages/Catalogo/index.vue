@@ -64,9 +64,9 @@ const handleImageError = (e) => {
 };
 
 const getImageUrl = (img) => {
-    if (!img || typeof img !== 'string') return 'https://placehold.co/400x300/EEE/31343C?text=Producto';
-    if (img.startsWith('http') || img.startsWith('/')) return img;
-    return `/${img}`;
+    if (!img || typeof img !== 'string')
+        return 'https://placehold.co/400x300/EEE/31343C?text=Producto';
+    return img; // ya viene con la URL completa desde el backend
 };
 
 const totalItems = computed(() =>

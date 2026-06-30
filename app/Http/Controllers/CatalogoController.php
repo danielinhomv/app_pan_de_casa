@@ -29,6 +29,9 @@ class CatalogoController extends Controller
             ->orderBy('nombre', 'asc')
             ->get()
             ->map(function ($producto) {
+                //obtener la ruta para local y produccion
+                $producto->imagen = $producto->imagen ? asset($producto->imagen) : null;
+
                 // Calcular stock disponible: entradas - salidas
                 $entradas = MovimientoProducto::where('producto_id', $producto->id)
                     ->where('tipo_movimiento', 'entrada')
