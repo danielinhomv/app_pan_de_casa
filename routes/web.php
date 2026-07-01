@@ -194,6 +194,8 @@ Route::middleware([
 });
 
 Route::prefix('pagofacil')->group(function () {
+
     Route::post('/consultar-estado', [\App\Http\Controllers\PagoFacilController::class, 'consultarEstado'])->name('pagofacil.consultar-estado');
     Route::post('/callback', [\App\Http\Controllers\PagoFacilController::class, 'callback'])->name('pagofacil.callback');
+
 });
