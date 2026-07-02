@@ -76,6 +76,14 @@ class MenuItemSeeder extends Seeder
                 'is_active' => true,
                 'roles'     => ['propietario'],
             ],
+            [
+                'title'     => 'Usuarios',
+                'route'     => 'usuarios.index',
+                'icon'      => 'fas fa-users',
+                'order'     => 9,
+                'is_active' => true,
+                'roles'     => ['propietario'],
+            ],
         ];
 
         foreach ($items as $item) {

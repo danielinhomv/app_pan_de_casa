@@ -10,6 +10,7 @@ use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\PageVisitController;
+use App\Http\Controllers\Usuario\UserController;
 use App\Http\Controllers\VentaController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,17 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
+
+    // gestion de usuarios
+    Route::prefix('usuarios')
+        ->middleware(['role:propietario'])
+        ->group(function () {
+            Route::get('/',        [UserController::class, 'index'])->name('usuarios.index');
+            Route::post('/',       [UserController::class, 'store'])->name('usuarios.store');
+            Route::get('/{id}',    [UserController::class, 'show'])->name('usuarios.show');
+            Route::put('/{id}',    [UserController::class, 'update'])->name('usuarios.update');
+            Route::delete('/{id}', [UserController::class, 'destroy'])->name('usuarios.destroy');
+        });
 
     //buscador de informacion en cualquier pagina
     Route::get('/buscar', [BuscarController::class, 'buscar'])->name('buscar');
@@ -197,5 +209,4 @@ Route::prefix('pagofacil')->group(function () {
 
     Route::post('/consultar-estado', [\App\Http\Controllers\PagoFacilController::class, 'consultarEstado'])->name('pagofacil.consultar-estado');
     Route::post('/callback', [\App\Http\Controllers\PagoFacilController::class, 'callback'])->name('pagofacil.callback');
-
 });
