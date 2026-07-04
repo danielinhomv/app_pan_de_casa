@@ -39,10 +39,8 @@ class CreateNewUser implements CreatesNewUsers
 
         // 3. Crear el registro en la tabla 'clientes' de forma automática
         Cliente::create([
-            'nombre'    => $user->name,
-            'email'     => $user->email,
-            'telefono'  => null,
-            'direccion' => null,
+            'nit'    => $user->name,
+            'razon_social'     => $user->name,
             'user_id'   => $user->id,
         ]);
 
