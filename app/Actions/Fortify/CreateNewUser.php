@@ -36,7 +36,7 @@ class CreateNewUser implements CreatesNewUsers
 
         // 2. Asignarle el rol de 'cliente' usando Spatie Laravel Permission
         $user->assignRole('cliente');
-
+        //dd($user);
         // 3. Crear el registro en la tabla 'clientes' de forma automática
         Cliente::create([
             'nit'    => $user->name,
