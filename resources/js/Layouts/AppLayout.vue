@@ -23,16 +23,18 @@ const showingNavigationDropdown = ref(false);
 const page = usePage();
 
 const currentUserRoles = computed(() => {
-    const roles = page.props.auth?.user?.roles || [];
+    //const roles = page.props.auth?.user?.roles || [];
     console.log('User roles:', roles); // Debug: ver qué roles llegan
-    return Array.isArray(roles) ? roles : [];
+    //return Array.isArray(roles) ? roles : [];
+    return true;
 });
 
 const canManageMenu = computed(() => {
-    const hasPermission = currentUserRoles.value.includes('propietario') ||
-        currentUserRoles.value.includes('encargadoalmacen');
-    console.log('Can manage menu:', hasPermission); // Debug
-    return hasPermission;
+    // const hasPermission = currentUserRoles.value.includes('propietario') ||
+    //     currentUserRoles.value.includes('encargadoalmacen');
+    // console.log('Can manage menu:', hasPermission); // Debug
+    // return hasPermission;
+    return true;
 });
 
 const switchToTeam = (team) => {
