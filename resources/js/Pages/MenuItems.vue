@@ -6,7 +6,7 @@ import NavLink from '@/Components/NavLink.vue';
 const page = usePage();
 const menuItems = computed(() => page.props.menuItems || []);
 
-const MAX_VISIBLE = 7;
+const MAX_VISIBLE = 6;
 
 const userRoles = computed(() => {
     const roles = page.props.auth?.user?.roles || [];
