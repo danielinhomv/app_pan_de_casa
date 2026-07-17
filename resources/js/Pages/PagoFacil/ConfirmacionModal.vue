@@ -4,7 +4,6 @@ import { computed } from 'vue';
 const props = defineProps({
     show: { type: Boolean, required: true },
     total: { type: Number, required: true },
-    tipoPago: { type: String, required: true },
     modalidadPago: { type: String, required: true },
     numeroCuotas: { type: Number, default: 3 },
     processing: { type: Boolean, default: false }
@@ -36,10 +35,10 @@ const montoCuota = computed(() => {
             <div class="p-6 space-y-4">
                 <div class="bg-gray-50 rounded-xl p-4 space-y-3">
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Método seleccionado</span>
-                        <span class="font-semibold text-gray-800 capitalize flex items-center gap-1">
-                            <i :class="tipoPago === 'qr' ? 'fas fa-qrcode text-purple-600' : 'fas fa-money-bill-wave text-green-600'"></i>
-                            {{ tipoPago }}
+                        <span class="text-gray-500">Método de pago</span>
+                        <span class="font-semibold text-gray-800 flex items-center gap-1">
+                            <i class="fas fa-qrcode text-purple-600"></i>
+                            QR PagoFácil
                         </span>
                     </div>
 
