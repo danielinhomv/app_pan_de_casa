@@ -5,12 +5,10 @@ import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
-import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import MenuItems from '@/Pages/MenuItems.vue';
 import DarkModeToggle from '@/Components/DarkModeToggle.vue';
 import PageFooter from '@/Components/PageFooter.vue';
-import { useAccessibility } from '@/Composables/useAccessibility';
 import BuscadorGlobal from '@/Components/BuscadorGlobal.vue';
 
 defineProps({
@@ -47,8 +45,6 @@ const logout = () => {
     router.post(route('logout'));
 };
 
-// Inicializar accesibilidad
-const accessibility = useAccessibility();
 
 // --- new: runtime loader for Font Awesome (avoids <script>/<style> in template) ---
 function injectCss(id, href) {

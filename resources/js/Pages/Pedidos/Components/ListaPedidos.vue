@@ -1,4 +1,6 @@
 <script setup>
+import { usePage } from '@inertiajs/vue3';
+
 const props = defineProps({ items: { type: Array, default: () => [] } });
 const emit = defineEmits(['ver','quick']);
 
@@ -19,7 +21,6 @@ const estadoLabel = {
 };
 
 // Obtener roles del usuario desde Inertia
-import { usePage } from '@inertiajs/vue3';
 const page = usePage();
 const userRoles = (Array.isArray(page.props.auth?.user?.roles) ? page.props.auth.user.roles : [])
                     .map(r => (typeof r === 'object' && r !== null ? (r.name ?? r) : String(r)));
