@@ -19,7 +19,7 @@ const props = defineProps({
 const toast = useToast();
 
 // Estado local del Formulario
-const tipoPago = ref('efectivo');
+const tipoPago = ref('qr');
 const modalidadPago = ref('contado');
 const numeroCuotas = ref(3);
 const processing = ref(false);
