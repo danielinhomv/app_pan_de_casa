@@ -31,29 +31,29 @@ class PedidoController extends Controller
      * Vista del propietario - detalle de pedido con mapa
      * 🔒 INTACTO
      */
-    public function show($id)
-    {
-        $pedido   = Pedido::with(['cliente', 'detalles.producto'])->findOrFail($id);
-        $detalles = $pedido->detalles;
+  public function show($id)
+{
+    $pedido   = Pedido::with(['cliente.user', 'detalles.producto'])->findOrFail($id);
+    $detalles = $pedido->detalles;
 
-        $rastreo   = PedidoRastreo::where('pedido_id', $id)->latest()->first();
-        $tiendaLat = -17.7833;
-        $tiendaLng = -63.1821;
+    $rastreo   = PedidoRastreo::where('pedido_id', $id)->latest()->first();
+    $tiendaLat = -17.7833;
+    $tiendaLng = -63.1821;
 
-        $route = [
-            'origin'      => ['lat' => $tiendaLat, 'lng' => $tiendaLng],
-            'destination' => [
-                'lat' => $rastreo ? $rastreo->latitud  : $tiendaLat,
-                'lng' => $rastreo ? $rastreo->longitud : $tiendaLng,
-            ],
-        ];
+    $route = [
+        'origin'      => ['lat' => $tiendaLat, 'lng' => $tiendaLng],
+        'destination' => [
+            'lat' => $rastreo ? $rastreo->latitud  : $tiendaLat,
+            'lng' => $rastreo ? $rastreo->longitud : $tiendaLng,
+        ],
+    ];
 
-        return Inertia::render('Pedidos/show', [
-            'pedido'   => $pedido,
-            'detalles' => $detalles,
-            'route'    => $route,
-        ]);
-    }
+    return Inertia::render('Pedidos/show', [
+        'pedido'   => $pedido,
+        'detalles' => $detalles,
+        'route'    => $route,
+    ]);
+}
 
     /**
      * Actualizar estado del pedido (propietario/delivery)

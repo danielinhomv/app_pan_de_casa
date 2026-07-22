@@ -93,6 +93,7 @@ onMounted(async () => await initMap());
           <div class="bg-white rounded-xl shadow p-4 lg:col-span-2">
             <div id="delivery-map" class="w-full h-[400px] rounded"></div>
           </div>
+
           <!-- Detalles -->
           <div class="bg-white rounded-xl shadow p-4">
             <h3 class="font-bold mb-3">Detalle del Pedido</h3>
@@ -102,10 +103,38 @@ onMounted(async () => await initMap());
                 <span class="font-semibold">Bs {{ Number(d.subtotal).toFixed(2) }}</span>
               </li>
             </ul>
+
+            <!-- Información del Cliente -->
             <div class="mt-4 border-t pt-4">
-              <p class="text-sm text-gray-600">Cliente: {{ pedido.cliente?.nombre || pedido.cliente?.name || 'N/A' }}</p>
-              <p class="text-sm text-gray-600">Estado: <span class="font-bold uppercase">{{ estadoActual }}</span></p>
-              <p class="text-sm text-gray-600 font-bold mt-2">Total: Bs {{ Number(pedido.total).toFixed(2) }}</p>
+              <h4 class="font-bold text-sm text-gray-700 mb-2">Información del Cliente</h4>
+              <p class="text-sm text-gray-600">
+                Nombre: {{ pedido.cliente?.user?.name || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-600">
+                Razón Social: {{ pedido.cliente?.razon_social || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-600">
+                NIT: {{ pedido.cliente?.nit || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-600">
+                Email: {{ pedido.cliente?.user?.email || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-600">
+                Teléfono: {{ pedido.cliente?.user?.telefono || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-600">
+                Dirección: {{ pedido.cliente?.user?.direccion || 'N/A' }}
+              </p>
+            </div>
+
+            <!-- Estado y Total -->
+            <div class="mt-4 border-t pt-4">
+              <p class="text-sm text-gray-600">
+                Estado: <span class="font-bold uppercase">{{ estadoActual }}</span>
+              </p>
+              <p class="text-sm text-gray-600 font-bold mt-2">
+                Total: Bs {{ Number(pedido.total).toFixed(2) }}
+              </p>
             </div>
 
             <!-- Flujo de Botones -->
