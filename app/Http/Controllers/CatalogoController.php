@@ -78,11 +78,10 @@ class CatalogoController extends Controller
     $request->validate([
         'productos'      => 'required|array|min:1',
         'modalidad_pago' => 'required|string|in:contado,cuotas',
-        'numero_cuotas'  => 'required_if:modalidad_pago,cuotas|integer|min:2|max:24',
+        'numero_cuotas'  => 'nullable|required_if:modalidad_pago,cuotas|integer|min:2|max:24',
         'total'          => 'required|numeric|min:0.01',
         'cliente_id'     => 'nullable|exists:users,id',
     ]);
-
     try {
         DB::beginTransaction();
 

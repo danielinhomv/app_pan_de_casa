@@ -129,12 +129,6 @@ Route::middleware([
 
 
     Route::prefix('produccion')->group(function () {
-        Route::get('/', [ProduccionController::class, 'index'])->name('production');
-        Route::post('/', [ProductoController::class, 'store'])->name('productos.store');
-        Route::put('/{id}', [ProductoController::class, 'update'])->name('productos.update');
-        Route::delete('/{id}', [ProductoController::class, 'destroy'])->name('productos.destroy');
-
-
         // PRODUCTO
         Route::prefix('productos')->group(function () {
             Route::get('/', [ProductoController::class, 'index'])->name('productos.index');
